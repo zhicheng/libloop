@@ -99,7 +99,6 @@ main(void)
 
 	err = loop_start(loop);
 	die_errno_unless(err == 0);
-	die_unless(err == 0);
 
 	loop_close(loop);
 
