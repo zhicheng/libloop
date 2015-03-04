@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "die.h"
-
 int
 pidfile(const char *file)
 {
@@ -18,39 +16,35 @@ pidfile(const char *file)
 
 	fd = open(file, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd == -1) {
-		die("pidfile: open %s %s", file, strerror(errno));
+		return -1;
 	}
 
 	flags = fcntl(fd, F_GETFD);
 	if (flags == -1) {
-		die("pidfile: fcntl %s error", file);
+		return -1;
 	}
 
 	flags |= FD_CLOEXEC;
 	if (fcntl(fd, F_SETFD, flags) == -1) {
-		die("pidfile: fcntl %s error", file);
+		return -1;
 	}
 
 	/* lock file */
+	lock.l_len    = 0;
+	lock.l_start  = 0;
 	lock.l_type   = F_WRLCK;
 	lock.l_whence = SEEK_SET;
-	lock.l_start  = 0;
-	lock.l_len    = 0;
 	if (fcntl(fd, F_SETLK, &lock) == -1) {
-		if (errno  == EAGAIN || errno == EACCES) {
-			die("pidfile: %s is locked", file);
-		} else {
-			die("pidfile: lock file %s fail", file);
-		}
+		return -1;
 	}
 
 	if (ftruncate(fd, 0) == -1) {
-		die("pidfile: truncate %s error", file);
+		return -1;
 	}
 
 	pidlen = snprintf(pid, sizeof(pid), "%ld\n", (long)getpid());
 	if (write(fd, pid, pidlen) != pidlen) {
-		die("pidfile: write %s error", file);
+		return -1;
 	}
 
 	return fd;

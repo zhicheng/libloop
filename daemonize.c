@@ -9,13 +9,11 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 
-#include "die.h"
-
 /*
  * ref:
  * http://0pointer.de/public/systemd-man/daemon.html
  */
-void
+int
 daemonize(int nochdir, int noclose)
 {
 	int   sig;
@@ -31,7 +29,7 @@ daemonize(int nochdir, int noclose)
 		 * in the daemon process.
 		 */
 		if (getrlimit(RLIMIT_NOFILE, &limit) == -1) {
-			die("getrlimit %s", strerror(errno));
+			return -1;
 		}
 
 		for(; limit.rlim_cur > 3; limit.rlim_cur--) {
@@ -51,21 +49,21 @@ daemonize(int nochdir, int noclose)
 	/* Call fork(), to create a background process. */
 	pid = fork();
 	if (pid == -1) {
-		die("fork %s", strerror(errno));
+		return -1;
 	} else if (pid != 0) {
 		_exit(0);
 	}
 
 	/* Call setsid() to detach from any terminal and create an independent session. */
 	if (setsid() == -1) {
-		die("setsid %s", strerror(errno));
+		return -1;
 	}
 
 	/* Call fork() again, to ensure that the daemon can never re-acquire a terminal again. */
 	signal(SIGHUP, SIG_IGN);
 	pid = fork();
 	if (pid == -1) {
-		die("fork %s", strerror(errno));
+		return -1;
 	} else if (pid != 0) {
 		_exit(0);
 	}
@@ -76,13 +74,13 @@ daemonize(int nochdir, int noclose)
 	close(STDERR_FILENO);
 
 	if (open("/dev/null", O_RDONLY) == -1) {
-		die("open %s", strerror(errno));
+		return -1;
 	}
 	if (open("/dev/null", O_WRONLY) == -1) {
-		die("open %s", strerror(errno));
+		return -1;
 	}
 	if (open("/dev/null", O_RDWR) == -1) {
-		die("open %s", strerror(errno));
+		return -1;
 	}
 
 	/*
@@ -99,7 +97,9 @@ daemonize(int nochdir, int noclose)
 		 * mount points from being unmounted.
 		 */
 		if (chdir("/") == -1) {
-			die("chdir %s", strerror(errno));
+			return -1;
 		}
 	}
+
+	return 0;
 }
