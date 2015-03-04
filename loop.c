@@ -372,7 +372,6 @@ loop_start(struct loop *loop)
 			timeout = &timer;
                 }
 		if (mux_polling(loop, timeout) != LOOP_OK) {
-			printf("err\n");
 			return LOOP_ERR;
 		}
         }
