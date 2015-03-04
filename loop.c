@@ -3,6 +3,7 @@
 #include "heapq.h"
 #include "hashtable.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -31,6 +32,8 @@ struct timer {
 };
 
 struct loop {
+	int stop;
+
         int event_len;
         int event_max;
         struct event *event;
@@ -342,7 +345,8 @@ loop_start(struct loop *loop)
         struct timer timer;
         struct timeval now;
 
-        for (;;) {
+	loop->stop = 0;
+        for (;!loop->stop;) {
 		timeout = NULL;
                 if (loop_timer_nearest(loop, &timer) == LOOP_OK) {
                         gettimeofday(&now, NULL);
@@ -368,10 +372,21 @@ loop_start(struct loop *loop)
 			timeout = &timer;
                 }
 		if (mux_polling(loop, timeout) != LOOP_OK) {
+			printf("err\n");
 			return LOOP_ERR;
 		}
         }
-        return LOOP_ERR;
+
+	/* loop stoped */
+        return LOOP_OK;
+}
+
+int
+loop_stop(struct loop *loop)
+{
+	loop->stop = 1;
+
+	return LOOP_OK;
 }
 
 #if defined(USE_KQUEUE)

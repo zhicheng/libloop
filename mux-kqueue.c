@@ -1,6 +1,6 @@
 #include "loop.h"
 
-#include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
@@ -102,7 +102,11 @@ mux_polling(struct loop *loop, struct timer *timer)
 
 	n = kevent(loop->mux->fd, NULL, 0, events, EVENTS_NR, timeout);
 	if (n == -1) {
-		return LOOP_ERR;
+		if (errno == EINTR) {
+			n = 0;
+		} else {
+			return LOOP_ERR;
+		}
 	}
 
 	loop_timer_dispatch(loop);

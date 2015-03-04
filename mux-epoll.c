@@ -120,7 +120,11 @@ mux_polling(struct loop *loop, struct timer *timer)
 
 	n = epoll_wait(loop->mux->fd, events, EVENTS_NR, timeout);
 	if (n == -1) {
-		return LOOP_ERR;
+                if (errno == EINTR) {
+                        n = 0;
+                } else {
+                        return LOOP_ERR;
+                }
 	}
 	loop_timer_dispatch(loop);
 
