@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/uio.h>
 
 /* TODO: add a sbuf_ctx_t and cbuf_ctx_t for allocator */
 
@@ -78,9 +79,12 @@ sbuf_recv(const int fd, sbuf_t *buf, ssize_t *rcv);
 /* TODO: add sbuf interface to cbuf */
 
 int
-cbuf_alloc(cbuf_t *cbuf, int max, int sbuf_max);
+cbuf_alloc(cbuf_t *cbuf, int max);
 
 void
 cbuf_release(cbuf_t *cbuf);
+
+void
+cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt);
 
 #endif /* __BUF_H__ */
