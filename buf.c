@@ -29,6 +29,7 @@ sbuf_release(sbuf_t *sbuf)
 	sbuf->len = 0;
 	sbuf->max = 0;
 	free(sbuf->buf);
+	sbuf->buf = NULL;
 }
 
 void
@@ -115,7 +116,6 @@ sbuf_send(const int fd, sbuf_t *buf, ssize_t *snd)
         ssize_t len;
 
         assert(buf->len <= buf->max);
-	
         assert(buf->off <  buf->len);
 
         *snd = 0;
