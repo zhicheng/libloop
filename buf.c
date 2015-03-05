@@ -158,12 +158,38 @@ sbuf_recv(const int fd, sbuf_t *buf, ssize_t *rcv)
 }
 
 int
-cbuf_alloc(cbuf_t *cbuf, int max, int sbuf_max)
+cbuf_alloc(cbuf_t *cbuf, int max)
 {
-	return 0;
+	cbuf->off = 0;
+	cbuf->len = 0;
+
+	if ((cbuf->max = max) > 0 &&
+	    (cbuf->buf = malloc(max * sizeof(sbuf_t))) != NULL)
+	{
+		return 0;
+	}
+	cbuf->max = 0;
+
+	return -1;
 }
 
 void
 cbuf_release(cbuf_t *cbuf)
 {
+	cbuf->off = 0;
+	cbuf->len = 0;
+	cbuf->max = 0;
+	free(cbuf->buf);
+	cbuf->buf = NULL;
+}
+
+void
+cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt)
+{
+	int i;
+
+	for (i = 0; i < cbuf->len; i++) {
+		iov[i].iov_len  = cbuf->buf[i].len;
+		iov[i].iov_base = cbuf->buf[i].buf + cbuf->buf[i].off;
+	}
 }
