@@ -45,6 +45,7 @@ mux_set_event(struct loop *loop, int fd, int tag, int type)
 	struct epoll_event event;
 
 	events = 0;
+	memset(&event, 0, sizeof(event));
 	if (type & LOOP_WRITE) {
 		events |= EPOLLOUT;
 	}
