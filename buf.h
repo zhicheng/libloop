@@ -7,6 +7,7 @@
 #include <sys/uio.h>
 
 /* TODO: add a sbuf_ctx_t and cbuf_ctx_t for allocator */
+/* FIXME: cbuf is not well tested do not use */
 
 /* should reset sbuf when off == len to save memory */
 typedef struct sbuf {    /* stream buffer     */
@@ -61,7 +62,7 @@ int
 sbuf_append(sbuf_t *sbuf, void *buf, int len);
 
 /*
- * send until empty the sbuf or will block
+ * send until empty the sbuf or will block or full
  * return  > 0 success
  * return <= 0 fail
  */
@@ -84,7 +85,52 @@ cbuf_alloc(cbuf_t *cbuf, int max);
 void
 cbuf_release(cbuf_t *cbuf);
 
+/* bytes offset */
+long
+cbuf_get_off(cbuf_t *cbuf);
+
 void
-cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt);
+cbuf_set_off(cbuf_t *cbuf, long off);
+
+/* bytes length */
+long
+cbuf_get_len(cbuf_t *cbuf);
+
+void
+cbuf_set_len(cbuf_t *cbuf, long off);
+
+/*
+ * bytes max
+ * and there is no set_max
+ */
+long
+cbuf_get_max(cbuf_t *cbuf);
+
+int
+cbuf_extend(cbuf_t *cbuf, int len);
+
+/*
+ * If type is 0, the offset is from start (0 -> len).
+ * If type is 1, the offset is from current location (off -> len).
+ * If type is 2, the offset is from end location (len -> max).
+ */
+void
+cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt, int type);
+
+/*
+ * send until empty the cbuf or will block or full
+ * return  > 0 success
+ * return <= 0 fail
+ */
+ssize_t
+cbuf_send(const int fd, cbuf_t *buf, ssize_t *snd);
+
+/*
+ * recv until full the cbuf or will block
+ * return  > 0 success
+ * return <= 0 fail
+ */
+ssize_t
+cbuf_recv(const int fd, cbuf_t *buf, ssize_t *rcv);
 
 #endif /* __BUF_H__ */

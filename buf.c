@@ -6,6 +6,9 @@
 #include <string.h>
 #include <sys/socket.h>
 
+/* can't bigger than UIO_MAXIOV */
+#define IOVCNT_DEFAULT 16
+
 int
 sbuf_alloc(sbuf_t *sbuf, int max)
 {
@@ -128,10 +131,10 @@ sbuf_send(const int fd, sbuf_t *buf, ssize_t *snd)
         } while (buf->off > 0 && buf->off < buf->len && len > 0);
 
         if (len == -1 && errno == EWOULDBLOCK) {
-                len = 1;        /* don't error when recv block */
+                len = 1;        /* don't error when send block */
 	}
 
-        return len;     /* err */
+        return len;
 }
 
 ssize_t
@@ -154,7 +157,7 @@ sbuf_recv(const int fd, sbuf_t *buf, ssize_t *rcv)
                 len = 1;        /* don't error when recv block */
 	}
 
-        return len;     /* err */
+        return len;
 }
 
 int
@@ -183,13 +186,209 @@ cbuf_release(cbuf_t *cbuf)
 	cbuf->buf = NULL;
 }
 
+long
+cbuf_get_off(cbuf_t *cbuf)
+{
+	int i;
+	long off;
+
+	off = 0;
+	for (i = 0; i < cbuf->off; i++) {
+		off += cbuf->buf[i].len;
+	}
+
+	off += cbuf->buf[cbuf->off].off;
+	
+	return off;
+}
+
 void
-cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt)
+cbuf_set_off(cbuf_t *cbuf, long off)
 {
 	int i;
 
 	for (i = 0; i < cbuf->len; i++) {
-		iov[i].iov_len  = cbuf->buf[i].len;
-		iov[i].iov_base = cbuf->buf[i].buf + cbuf->buf[i].off;
+		if (cbuf->buf[i].len > off) {
+			cbuf->buf[i].off = off;
+
+			break;
+		} else {
+			off -= cbuf[i].len;
+		}
 	}
+}
+
+long
+cbuf_get_len(cbuf_t *cbuf)
+{
+	int i;
+	long len;
+
+	len = 0;
+	for (i = 0; i < cbuf->len; i++) {
+		len += cbuf->buf[i].len;
+	}
+
+	return len;
+}
+
+void
+cbuf_set_len(cbuf_t *cbuf, long off)
+{
+	int i;
+	long len;
+
+	len = 0;
+	for (i = 0; i < cbuf->max; i++) {
+		if (cbuf->buf[i].max > len) {
+			cbuf->buf[i].len = len;
+
+			break;
+		} else {
+			len -= cbuf->buf[i].max;
+		}
+	}
+}
+
+long
+cbuf_get_max(cbuf_t *cbuf)
+{
+	int i;
+	long max;
+
+	max = 0;
+	for (i = 0; i < cbuf->max; i++) {
+		max += cbuf->buf[i].max;
+	}
+
+	return max;
+}
+
+int
+cbuf_extend(cbuf_t *cbuf, int len)
+{
+	sbuf_t *buf;
+
+	if ((cbuf->len + len) < cbuf->max) {
+		return 0;
+	}
+
+	if (cbuf->buf != NULL) {
+		buf = realloc(cbuf->buf, (cbuf->max + len) * sizeof(sbuf_t));
+	} else {
+		buf = malloc(len * sizeof(sbuf_t));
+	}
+	if (buf != NULL) {
+		cbuf->buf  = buf;
+		cbuf->max += len;
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
+void
+cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt, int type)
+{
+	int i;
+	int off;
+	int len;
+
+	switch (type) {
+	case 0:
+		off = 0;
+		len = cbuf->len;
+
+		break;
+	case 1:
+		off = cbuf->off;
+		len = cbuf->len;
+
+		break;
+	case 2:
+		off = cbuf->len;
+		len = cbuf->max;
+
+		break;
+	}
+
+	for (i = 0; i < iovcnt && off < len; i++, off++) {
+		iov[i].iov_len  = cbuf->buf[off].len;
+		iov[i].iov_base = cbuf->buf[off].buf + cbuf->buf[off].off;
+	}
+}
+
+ssize_t
+cbuf_send(const int fd, cbuf_t *buf, ssize_t *snd)
+{
+	long off;
+        ssize_t n;
+
+	int iovcnt;
+	struct iovec iov[IOVCNT_DEFAULT];
+
+
+        assert(buf->len <= buf->max);
+        assert(buf->off <  buf->len);
+
+        *snd = 0;
+	iovcnt = IOVCNT_DEFAULT;
+	off = cbuf_get_off(buf);
+        do {
+		if ((buf->len - buf->off) < iovcnt) {
+			iovcnt = buf->len - buf->off;
+		}
+		cbuf_iovec(buf, iov, iovcnt, 1);
+
+		n = writev(fd, iov, iovcnt);
+                if (n > 0) {
+                        *snd += n;
+                         off += n;
+                }
+        } while (off > 0 && off < cbuf_get_len(buf) && n > 0);
+
+	cbuf_set_off(buf, off);
+
+        if (n == -1 && errno == EWOULDBLOCK) {
+                n = 1;        /* don't error when writev block */
+	}
+
+        return n;
+}
+
+ssize_t
+cbuf_recv(const int fd, cbuf_t *buf, ssize_t *rcv)
+{
+	long len;
+        ssize_t n;
+
+	int iovcnt;
+	struct iovec iov[IOVCNT_DEFAULT];
+
+        assert(buf->len < buf->max);
+
+        *rcv = 0;
+	iovcnt = IOVCNT_DEFAULT;
+	len = cbuf_get_len(buf);
+        do {
+		if ((buf->len - buf->off) < iovcnt) {
+			iovcnt = buf->len - buf->off;
+		}
+		cbuf_iovec(buf, iov, iovcnt, 2);
+
+		n = readv(fd, iov, iovcnt);
+                if (n > 0) {
+                        *rcv += n;
+                         len += n;
+                }
+        } while (n > 0 && len < cbuf_get_max(buf) && n > 0);
+
+	cbuf_set_len(buf, len);
+
+        if (n == -1 && errno == EWOULDBLOCK) {
+                n = 1;        /* don't error when readv block */
+	}
+
+        return n;
 }
