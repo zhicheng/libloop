@@ -113,7 +113,6 @@ cbuf_extend(cbuf_t *cbuf, int len);
  * If type is 0, the offset is from start (0 -> len).
  * If type is 1, the offset is from current location (off -> len).
  * If type is 2, the offset is from end location (len -> max).
- * If type is none above, the offset is from start (0 -> len).
  */
 void
 cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt, int type);
