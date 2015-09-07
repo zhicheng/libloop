@@ -1,4 +1,4 @@
-#include "loop.h"
+#include "mux.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@ struct mux {
 };
 
 int
-mux_open(struct loop *loop, int event_max)
+mux_open(loop_t *loop, int event_max)
 {
 	if (event_max > FD_SETSIZE) {
 		goto err;
@@ -31,13 +31,13 @@ err:
 }
 
 void
-mux_close(struct loop *loop)
+mux_close(loop_t *loop)
 {
 	free(loop->mux);
 }
 
 int
-mux_set_event(struct loop *loop, int fd, int tag, int type)
+mux_set_event(loop_t *loop, int fd, int tag, int type)
 {
 	if (type & LOOP_WRITE) {
 		FD_SET(fd, &loop->mux->writefds);
@@ -55,7 +55,7 @@ mux_set_event(struct loop *loop, int fd, int tag, int type)
 }
 
 int
-mux_del_event(struct loop *loop, int fd, int type)
+mux_del_event(loop_t *loop, int fd, int type)
 {
 	if (type & LOOP_WRITE) {
 		FD_CLR(fd, &loop->mux->writefds);
@@ -81,7 +81,7 @@ mux_del_event(struct loop *loop, int fd, int type)
 }
 
 int
-mux_polling(struct loop *loop, struct timer *timer)
+mux_polling(loop_t *loop, void *timer)
 {
 	int n;
 	int fd;
@@ -95,8 +95,8 @@ mux_polling(struct loop *loop, struct timer *timer)
 	if (timer == NULL) {
 		timeout = NULL;
 	} else {
-                timeval.tv_sec  = timer->seconds;
-                timeval.tv_usec = timer->nanoseconds / NSEC_PER_USEC;
+                timeval.tv_sec  = ((timer_t *)timer)->seconds;
+                timeval.tv_usec = ((timer_t *)timer)->nanoseconds / NSEC_PER_USEC;
 
                 timeout = &timeval;
 	}

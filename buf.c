@@ -295,6 +295,8 @@ cbuf_iovec(cbuf_t *cbuf, struct iovec *iov, int iovcnt, int type)
 	int off;
 	int len;
 
+	assert((type == 0) || (type == 1) || (type == 2));
+
 	switch (type) {
 	case 0:
 		off = 0;

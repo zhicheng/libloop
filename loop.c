@@ -14,33 +14,32 @@
 
 #include "mux.h"
 
-struct event {
+typedef struct event {
         int id;
         int tag;
         int type;
         int flag;
 
-        void *args;
+        void        *args;
         loop_proc_t *proc;
-};
+} event_t;
 
-struct timer {
-        struct event event;
-
-        long seconds;
-        int  nanoseconds;
-};
+typedef struct timer {
+        event_t event;
+        long    seconds;
+        int     nanoseconds;
+} timer_t;
 
 struct loop {
 	int stop;
 
         int event_len;
         int event_max;
-        struct event *event;
+        event_t *event;
 
         int timer_len;
         int timer_max;
-        struct timer *timer;
+        timer_t *timer;
 
         void **timer_table;
 
@@ -50,15 +49,15 @@ struct loop {
 static int
 timer_hash(const void *a)
 {
-	const struct timer *timer = a;
+	const timer_t *timer = a;
 	return (timer->event.id + timer->event.tag + timer->event.type);
 }
 
 static int
 timer_compare(const void *a, const void *b)
 {
-	const struct timer *timera = a;
-	const struct timer *timerb = b;
+	const timer_t *timera = a;
+	const timer_t *timerb = b;
 
 	if (timera->event.id   == timerb->event.id  &&
 	    timera->event.tag  == timerb->event.tag &&
@@ -89,12 +88,12 @@ timer_compare(const void *a, const void *b)
 int
 timer_swap(void *args, void *a, void *b)
 {
-	struct timer timer;
+	timer_t timer;
 
-	struct timer *timera = a;
-	struct timer *timerb = b;
+	timer_t *timera = a;
+	timer_t *timerb = b;
 
-	struct loop *loop = args;
+	loop_t *loop = args;
 
 	timer = *timera;
 	*timera = *timerb;
@@ -110,7 +109,7 @@ timer_swap(void *args, void *a, void *b)
 }
 
 int
-loop_push_timer(struct loop *loop, struct timer *timer)
+loop_push_timer(loop_t *loop, timer_t *timer)
 {
 	if (loop->timer_len == loop->timer_max) {
 		return LOOP_ERR;
@@ -127,7 +126,7 @@ loop_push_timer(struct loop *loop, struct timer *timer)
 }
 
 int
-loop_pop_timer(struct loop *loop, struct timer *timer)
+loop_pop_timer(loop_t *loop, timer_t *timer)
 {
 	while (loop->timer_len) {
 		heapq_pop(loop->timer, loop->timer_len--, sizeof(*timer), timer,
@@ -141,15 +140,15 @@ loop_pop_timer(struct loop *loop, struct timer *timer)
 }
 
 int
-loop_set_timer(struct loop *loop, int id, int tag, int type, int flag,
+loop_set_timer(loop_t *loop, int id, int tag, int type, int flag,
 	long sec, int nsec, loop_proc_t *proc, void *args)
 {
 	if (loop->timer_len == loop->timer_max) {
 		return LOOP_ERR;
 	}
 
+	timer_t *timer;
 	struct timeval now;
-	struct timer *timer;
 
 	gettimeofday(&now, NULL);
 
@@ -172,10 +171,10 @@ loop_set_timer(struct loop *loop, int id, int tag, int type, int flag,
 }
 
 int
-loop_del_timer(struct loop *loop, int id, int tag, int type)
+loop_del_timer(loop_t *loop, int id, int tag, int type)
 {
-	struct timer timer;
-	struct timer *p;
+	timer_t timer;
+	timer_t *p;
 
 	timer.event.id   = id;
 	timer.event.tag  = tag;
@@ -194,7 +193,7 @@ loop_del_timer(struct loop *loop, int id, int tag, int type)
 }
 
 int
-loop_timer_nearest(struct loop *loop, struct timer *timer)
+loop_timer_nearest(loop_t *loop, timer_t *timer)
 {
 	if (loop->timer_len > 0) {
 		*timer = loop->timer[0];
@@ -206,10 +205,10 @@ loop_timer_nearest(struct loop *loop, struct timer *timer)
 }
 
 int
-loop_timer_dispatch(struct loop *loop)
+loop_timer_dispatch(loop_t *loop)
 {
 	int i;
-	struct timer timer;
+	timer_t timer;
 	struct timeval now;
 
 	for (i = 0;;i++) {
@@ -238,29 +237,29 @@ loop_timer_dispatch(struct loop *loop)
 	return i;
 }
 
-struct loop *
+loop_t *
 loop_open(int event_max, int timer_max)
 {
-        struct loop *loop = NULL;
+        loop_t *loop = NULL;
 
         if (event_max < 0 || timer_max < 0) {
 		return NULL;
         }
 
-        loop = malloc(sizeof(struct loop));
+        loop = malloc(sizeof(loop_t));
         if (loop == NULL) {
 		return NULL;
 	}
 
-        memset(loop, 0, sizeof(struct loop));
+        memset(loop, 0, sizeof(loop_t));
 
-        loop->event = calloc(event_max, sizeof(struct event));
+        loop->event = calloc(event_max, sizeof(event_t));
         loop->event_max = event_max;
         if (loop->event == NULL) {
                 goto err;
 	}
 
-        loop->timer = calloc(timer_max, sizeof(struct timer));
+        loop->timer = calloc(timer_max, sizeof(timer_t));
         loop->timer_max = timer_max;
         if (loop->timer == NULL) {
                 goto err;
@@ -287,7 +286,7 @@ err:
 }
 
 void
-loop_close(struct loop *loop)
+loop_close(loop_t *loop)
 {
         free(loop->event);
         free(loop->timer);
@@ -297,7 +296,7 @@ loop_close(struct loop *loop)
 }
 
 int
-loop_set_event(struct loop *loop, int fd, int tag, int type, int flag,
+loop_set_event(loop_t *loop, int fd, int tag, int type, int flag,
         loop_proc_t *proc, void *args)
 {
         if (fd >= loop->event_max) {
@@ -323,7 +322,7 @@ loop_set_event(struct loop *loop, int fd, int tag, int type, int flag,
 }
 
 int
-loop_del_event(struct loop *loop, int fd, int type)
+loop_del_event(loop_t *loop, int fd, int type)
 {
         if ((type & LOOP_WRITE) == 0 && (type & LOOP_READ) == 0) {
                 return LOOP_ERR;
@@ -339,10 +338,11 @@ loop_del_event(struct loop *loop, int fd, int type)
 }
 
 int
-loop_start(struct loop *loop)
+loop_start(loop_t *loop)
 {
-	struct timer *timeout;
-        struct timer timer;
+	timer_t *timeout;
+        timer_t timer;
+
         struct timeval now;
 
 	loop->stop = 0;
@@ -381,7 +381,7 @@ loop_start(struct loop *loop)
 }
 
 int
-loop_stop(struct loop *loop)
+loop_stop(loop_t *loop)
 {
 	loop->stop = 1;
 

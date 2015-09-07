@@ -2,7 +2,6 @@ CC = cc
 
 system_name := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
-
 CFLAGS += -O2
 CFLAGS += -Wall
 CFLAGS += -Werror

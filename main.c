@@ -12,7 +12,7 @@
 #include <sys/types.h>
 
 void
-tcp_handler(struct loop *loop, int fd, int tag, int type, int flag, void *args)
+tcp_handler(loop_t *loop, int fd, int tag, int type, int flag, void *args)
 {
 	int len;
 	char request[4096];
@@ -39,7 +39,7 @@ err:
 }
 
 void
-tcp_acceptor(struct loop *loop, int fd, int tag, int type, int flag, void *args)
+tcp_acceptor(loop_t *loop, int fd, int tag, int type, int flag, void *args)
 {
 	int port;
         int acceptfd;
@@ -54,12 +54,20 @@ tcp_acceptor(struct loop *loop, int fd, int tag, int type, int flag, void *args)
 	loop_set_event(loop, acceptfd, 0, LOOP_READ, 0, tcp_handler, NULL);
 }
 
+void
+timer_func(loop_t *loop, int id, int tag, int type, int flag, void *args)
+{
+	printf("timer: %d\n", id);
+}
+
 int
 main(void)
 {
+	int i;
 	int fd;
 	int err;
-	struct loop  *loop;
+
+	loop_t *loop;
 	socket_addr_t addr;
 
 	signal(SIGPIPE, SIG_IGN);
@@ -97,10 +105,18 @@ main(void)
 	err = loop_set_event(loop, fd, 0, LOOP_READ, 0, tcp_acceptor, NULL);
 	die_unless(err == 0);
 
+	for (i = 0; i < 1024; i++) {
+		err = loop_set_timer(loop, i, 1, 0, 0, i, 0, timer_func, NULL);
+		die_unless(err == 0);
+	}
+
 	err = loop_start(loop);
 	die_errno_unless(err == 0);
 
 	loop_close(loop);
+
+	goto err;
+err:
 
 	return 0;
 }

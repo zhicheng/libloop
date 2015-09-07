@@ -2,7 +2,7 @@
 #define __LOOP_H__
 
 enum {
-	LOOP_OK  = 0,
+	LOOP_OK  =  0,
 	LOOP_ERR = -1
 };
 
@@ -19,34 +19,34 @@ enum {
 	LOOP_FLAGS_INVALID   = 1 << 2,
 };
 
-struct loop;
+typedef struct loop loop_t;
 
-typedef void loop_proc_t(struct loop *loop, int id, int tag, int type, int flag, void *args); 
+typedef void loop_proc_t(loop_t *loop, int id, int tag, int type, int flag, void *args); 
 
-struct loop *
+loop_t *
 loop_open(int event_max, int timer_max);
 
 void
-loop_close(struct loop *loop);
+loop_close(loop_t *loop);
 
 int
-loop_set_event(struct loop *loop, int fd, int tag, int type, int flag,
-	loop_proc_t *proc, void *arg);
+loop_set_event(loop_t *loop, int fd, int tag, int type, int flag,
+	loop_proc_t *proc, void *args);
 
 int
-loop_del_event(struct loop *loop, int fd, int type);
+loop_del_event(loop_t *loop, int fd, int type);
 
 int
-loop_set_timer(struct loop *loop, int id, int tag, int type, int flag,
-        long seconds, int nanoseconds, loop_proc_t *proc, void *arg);
+loop_set_timer(loop_t *loop, int id, int tag, int type, int flag,
+        long seconds, int nanoseconds, loop_proc_t *proc, void *args);
 
 int
-loop_del_timer(struct loop *loop, int id, int tag, int type);
+loop_del_timer(loop_t *loop, int id, int tag, int type);
 
 int
-loop_start(struct loop *loop);
+loop_start(loop_t *loop);
 
 int
-loop_stop(struct loop *loop);
+loop_stop(loop_t *loop);
 
 #endif /* __LOOP_H__ */

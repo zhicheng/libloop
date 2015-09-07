@@ -1,4 +1,4 @@
-#include "loop.h"
+#include "mux.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@ struct mux {
 };
 
 int
-mux_open(struct loop *loop, int event_max)
+mux_open(loop_t *loop, int event_max)
 {
 	loop->mux = malloc(sizeof(struct mux));
 	if (loop->mux == NULL) {
@@ -32,13 +32,13 @@ err:
 }
 
 void
-mux_close(struct loop *loop)
+mux_close(loop_t *loop)
 {
 	free(loop->mux);
 }
 
 int
-mux_set_event(struct loop *loop, int fd, int tag, int type)
+mux_set_event(loop_t *loop, int fd, int tag, int type)
 {
 	struct kevent event;
 
@@ -58,7 +58,7 @@ mux_set_event(struct loop *loop, int fd, int tag, int type)
 }
 
 int
-mux_del_event(struct loop *loop, int fd, int type)
+mux_del_event(loop_t *loop, int fd, int type)
 {
 	struct kevent event;
 
@@ -80,7 +80,7 @@ mux_del_event(struct loop *loop, int fd, int type)
 #define EVENTS_NR	128
 
 int
-mux_polling(struct loop *loop, struct timer *timer)
+mux_polling(loop_t *loop, void *timer)
 {
 	int i;
 	int n;
@@ -94,8 +94,8 @@ mux_polling(struct loop *loop, struct timer *timer)
 	if (timer == NULL) {
 		timeout = NULL;
 	} else {
-		timespec.tv_sec  = timer->seconds;
-		timespec.tv_nsec = timer->nanoseconds;
+		timespec.tv_sec  = ((timer_t *)timer)->seconds;
+		timespec.tv_nsec = ((timer_t *)timer)->nanoseconds;
 
 		timeout = &timespec;
 	}
